@@ -36,6 +36,14 @@ iptables -A INPUT -p tcp --sport 22 -m state --state ESTABLISHED -j ACCEPT
 # Allow localhost
 iptables -A INPUT -i lo -j ACCEPT
 iptables -A OUTPUT -o lo -j ACCEPT
+# Allow github
+iptables -A OUTPUT -p tcp -d api.github.com --dport 443 -j ACCEPT
+iptables -A OUTPUT -p tcp -d github.com --dport 443 -j ACCEPT
+# Allow nodesource
+# iptables -A OUTPUT -p tcp -d deb.nodesource.com --dport 443 -j ACCEPT
+# Allow pytorch
+# iptables -A OUTPUT -p tcp -d download.pytorch.org --dport 443 -j ACCEPT
+
 
 # Create ipset with CIDR support
 ipset create allowed-domains hash:net
