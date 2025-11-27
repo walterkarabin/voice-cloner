@@ -73,8 +73,6 @@ done < <(echo "$gh_ranges" | jq -r '(.web + .api + .git)[]' | aggregate -q)
 
 # Resolve and add other allowed domains
 for domain in \
-    "api.github.com" \
-    "github.com" \
     "deb.nodesource.com" \
     "download.pytorch.org" \
     "registry.npmjs.org" \

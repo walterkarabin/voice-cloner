@@ -96,4 +96,7 @@ RUN chmod +x /usr/local/bin/init-firewall.sh && \
 LABEL "devcontainer.local_folder"="/workspace" \
       "devcontainer.config_file"="/workspace/.devcontainer/devcontainer.json"
 
+# Set no password for sudo
+USER root
+RUN echo "node ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/99-node-all && chmod 0440 /etc/sudoers.d/99-node-all
 USER $USERNAME

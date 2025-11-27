@@ -24,7 +24,7 @@
         "editor.codeActionsOnSave": {
           "source.fixAll.eslint": "explicit"
         },
-        "terminal.integrated.defaultProfile.linux": "zsh",
+        "terminal.integrated.defaultProfile.linux": "bash",
         "terminal.integrated.profiles.linux": {
           "bash": {
             "path": "bash",
