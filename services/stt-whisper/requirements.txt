@@ -1,0 +1,14 @@
+grpcio>=1.60.0
+grpcio-tools>=1.60.0
+protobuf>=3.20.0
+numpy>=1.24.0
+
+# Whisper implementations (install one of these)
+# Option 1: faster-whisper (recommended, uses CTranslate2)
+# faster-whisper>=0.10.0
+
+# Option 2: openai-whisper (original implementation)
+# openai-whisper>=20231117
+
+# For audio file support in client
+soundfile>=0.12.0
