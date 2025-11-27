@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package charactervoice.chunker;
+
+import "common.proto";
+import "rewriter.proto";
+
+// Prosodic text chunk ready for TTS
+message TextChunk {
+  string text = 1;                          // Text chunk (20-40 characters)
+  string character_id = 2;                  // Character identifier
+  int32 chunk_index = 3;                    // Sequential chunk number
+  bool is_clause_boundary = 4;              // True if this ends a clause/phrase
+  common.Metadata metadata = 5;
+}
+
+// Chunker service
+service Chunker {
+  // Streaming: accepts character fragments and returns prosodic chunks
+  rpc ChunkTextStream(stream rewriter.CharacterFragment) returns (stream TextChunk);
+}

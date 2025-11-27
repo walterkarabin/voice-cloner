@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package charactervoice.embed;
+
+import "common.proto";
+
+// Request for voice embedding
+message EmbeddingRequest {
+  string character_id = 1;                  // Character identifier (e.g., "yoda", "vader")
+  common.Metadata metadata = 2;
+}
+
+// Voice embedding response
+message EmbeddingResponse {
+  string character_id = 1;                  // Character identifier
+  bytes embedding_data = 2;                 // Binary embedding data (float32 array)
+  int32 embedding_dim = 3;                  // Embedding dimension
+  common.Metadata metadata = 4;
+}
+
+// Embedding loader service
+service EmbedLoader {
+  // Unary RPC: returns preloaded embedding for a character
+  rpc GetEmbedding(EmbeddingRequest) returns (EmbeddingResponse);
+}

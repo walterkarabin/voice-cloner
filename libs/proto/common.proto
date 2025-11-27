@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package charactervoice.common;
+
+// Common timestamp message
+message Timestamp {
+  int64 seconds = 1;
+  int32 nanos = 2;
+}
+
+// Common metadata for tracking messages through the pipeline
+message Metadata {
+  string request_id = 1;
+  Timestamp timestamp = 2;
+  int64 sequence_number = 3;
+}
+
+// Empty message for RPCs that don't return data
+message Empty {}

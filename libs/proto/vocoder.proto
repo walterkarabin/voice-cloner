@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package charactervoice.vocoder;
+
+import "audio.proto";
+
+// Vocoder service (HiFi-GAN)
+service Vocoder {
+  // Streaming: converts mel spectrogram chunks to PCM audio chunks
+  rpc GeneratePCM(stream audio.MelChunk) returns (stream audio.PCMChunk);
+}

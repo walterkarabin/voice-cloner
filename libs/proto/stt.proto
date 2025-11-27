@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package charactervoice.stt;
+
+import "common.proto";
+import "audio.proto";
+
+// Partial transcript from Whisper STT
+message PartialTranscript {
+  string text = 1;                          // Partial or complete transcribed text
+  float confidence = 2;                     // Confidence score (0.0 - 1.0)
+  bool is_final = 3;                        // True if this is a final transcript
+  int64 start_time_ms = 4;                  // Start time in milliseconds
+  int64 end_time_ms = 5;                    // End time in milliseconds
+  common.Metadata metadata = 6;
+}
+
+// Whisper STT service
+service WhisperSTT {
+  // Bidirectional streaming: accepts audio chunks and returns partial transcripts
+  rpc StreamAudio(stream audio.AudioChunk) returns (stream PartialTranscript);
+}

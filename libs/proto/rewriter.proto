@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package charactervoice.rewriter;
+
+import "common.proto";
+import "stt.proto";
+
+// Rewritten text fragment in character voice
+message CharacterFragment {
+  string text = 1;                          // Rewritten text in character style
+  string character_id = 2;                  // Character identifier (e.g., "yoda")
+  bool is_provisional = 3;                  // True if this may be revised in next update
+  int64 original_start_ms = 4;              // Original transcript start time
+  int64 original_end_ms = 5;                // Original transcript end time
+  common.Metadata metadata = 6;
+}
+
+// LLM Rewriter service
+service LLMRewriter {
+  // Streaming: accepts partial transcripts and returns character-rewritten fragments
+  rpc RewriteStream(stream stt.PartialTranscript) returns (stream CharacterFragment);
+}

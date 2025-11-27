@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package charactervoice.tts;
+
+import "common.proto";
+import "audio.proto";
+
+// TTS generation request (text chunk + embedding)
+message TTSRequest {
+  string text = 1;                          // Text to synthesize
+  bytes embedding_data = 2;                 // Voice embedding
+  int32 embedding_dim = 3;                  // Embedding dimension
+  string character_id = 4;                  // Character identifier
+  int32 chunk_index = 5;                    // Sequential chunk number
+  common.Metadata metadata = 6;
+}
+
+// TTS Streamer service (OpenVoice acoustic model)
+service TTSStreamer {
+  // Streaming: accepts TTS requests and returns mel spectrogram chunks
+  rpc GenerateMel(stream TTSRequest) returns (stream audio.MelChunk);
+}

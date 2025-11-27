@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package charactervoice.audio;
+
+import "common.proto";
+
+// Raw audio chunk (input from microphone)
+message AudioChunk {
+  bytes data = 1;                           // Raw PCM audio data
+  int32 sample_rate = 2;                    // Sample rate (e.g., 16000 Hz)
+  int32 channels = 3;                       // Number of channels (1 = mono, 2 = stereo)
+  int32 sample_width = 4;                   // Bytes per sample (e.g., 2 for 16-bit)
+  common.Metadata metadata = 5;
+}
+
+// PCM audio chunk (output for playback)
+message PCMChunk {
+  bytes data = 1;                           // Raw PCM audio data
+  int32 sample_rate = 2;                    // Sample rate (e.g., 22050 Hz)
+  int32 channels = 3;                       // Number of channels
+  int32 sample_width = 4;                   // Bytes per sample
+  common.Metadata metadata = 5;
+}
+
+// Mel spectrogram chunk
+message MelChunk {
+  bytes data = 1;                           // Mel spectrogram data (float32 array)
+  int32 n_mels = 2;                         // Number of mel bins
+  int32 n_frames = 3;                       // Number of time frames
+  common.Metadata metadata = 4;
+}

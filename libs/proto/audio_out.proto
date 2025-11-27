@@ -1,0 +1,44 @@
+syntax = "proto3";
+
+package charactervoice.audioout;
+
+import "common.proto";
+import "audio.proto";
+
+// Playback control commands
+enum PlaybackCommand {
+  PLAY = 0;
+  PAUSE = 1;
+  RESUME = 2;
+  STOP = 3;
+  MUTE = 4;
+  UNMUTE = 5;
+}
+
+// Playback control request
+message PlaybackControl {
+  PlaybackCommand command = 1;
+  float volume = 2;                         // Volume level (0.0 - 1.0)
+  common.Metadata metadata = 3;
+}
+
+// Playback status response
+message PlaybackStatus {
+  bool is_playing = 1;
+  bool is_muted = 2;
+  float current_volume = 3;
+  int64 buffer_size_ms = 4;                 // Current buffer size in milliseconds
+  common.Metadata metadata = 5;
+}
+
+// Audio output service
+service AudioOut {
+  // Streaming: accepts PCM chunks for playback
+  rpc PlayStream(stream audio.PCMChunk) returns (common.Empty);
+
+  // Control playback
+  rpc Control(PlaybackControl) returns (PlaybackStatus);
+
+  // Get current status
+  rpc GetStatus(common.Empty) returns (PlaybackStatus);
+}
