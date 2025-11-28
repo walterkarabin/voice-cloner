@@ -9,6 +9,53 @@ This document provides instructions for testing each component of the character 
 - gRPC tools installed
 - CUDA 12.1 (for GPU-accelerated services)
 
+## Using Real Models vs Mock Implementations
+
+All services support both **mock mode** (for testing without models) and **real model mode** (for production use):
+
+### Mock Mode (Default)
+- No model downloads required
+- No GPU needed
+- Fast startup
+- Useful for testing pipeline flow
+- Use `--use-mock` flag (default for most services)
+
+### Real Model Mode
+- Requires model downloads (internet access needed once)
+- GPU recommended for best performance
+- Slower startup (model loading)
+- Production-quality output
+- Use `--use-real` or specific model flags
+
+### Service-Specific Real Model Usage
+
+**STT-Whisper**: Uses faster-whisper or openai-whisper automatically
+```bash
+python3 server.py --port 50052 --model-size small
+# Models auto-download from openaipublic.azureedge.net
+```
+
+**Rewriter-LLM**: Requires GGUF model file
+```bash
+python3 server.py --port 50053 --model-path /path/to/llama-model.gguf
+# Download models from huggingface.co
+```
+
+**TTS-Streamer**: Uses Coqui TTS models
+```bash
+python3 server.py --port 50055 --use-real --model-name "tts_models/en/vctk/vits"
+# Models auto-download from Coqui TTS
+```
+
+**Vocoder**: Uses Griffin-Lim (no model) or HiFi-GAN
+```bash
+python3 server.py --port 50056 --use-griffin-lim  # No model needed
+# OR with HiFi-GAN model:
+python3 server.py --port 50056 --use-real --model-path /path/to/hifigan
+```
+
+**Note**: Ensure firewall allows access to model download domains (huggingface.co, openaipublic.azureedge.net)
+
 ## Component Testing Status
 
 ### ✅ Completed Components
