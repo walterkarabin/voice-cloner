@@ -1,0 +1,167 @@
+version: '3.8'
+
+services:
+  # Embed Loader - Voice embeddings service
+  embed-loader:
+    build:
+      context: ../..
+      dockerfile: infra/docker/embed-loader.Dockerfile
+    container_name: voice-embed-loader
+    ports:
+      - "50051:50051"
+    networks:
+      - voice-pipeline
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import grpc; grpc.insecure_channel('localhost:50051').channel_ready()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # STT Whisper - Speech to text
+  stt-whisper:
+    build:
+      context: ../..
+      dockerfile: infra/docker/stt-whisper.Dockerfile
+    container_name: voice-stt-whisper
+    ports:
+      - "50052:50052"
+    networks:
+      - voice-pipeline
+    restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    environment:
+      - CUDA_VISIBLE_DEVICES=0
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import grpc; grpc.insecure_channel('localhost:50052').channel_ready()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Rewriter LLM - Character voice rewriting
+  rewriter-llm:
+    build:
+      context: ../..
+      dockerfile: infra/docker/rewriter-llm.Dockerfile
+    container_name: voice-rewriter-llm
+    ports:
+      - "50053:50053"
+    networks:
+      - voice-pipeline
+    restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    environment:
+      - CUDA_VISIBLE_DEVICES=0
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import grpc; grpc.insecure_channel('localhost:50053').channel_ready()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Chunker - Text chunking for TTS
+  chunker:
+    build:
+      context: ../..
+      dockerfile: infra/docker/chunker.Dockerfile
+    container_name: voice-chunker
+    ports:
+      - "50054:50054"
+    networks:
+      - voice-pipeline
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import grpc; grpc.insecure_channel('localhost:50054').channel_ready()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # TTS Streamer - Text to mel spectrograms
+  tts-streamer:
+    build:
+      context: ../..
+      dockerfile: infra/docker/tts-streamer.Dockerfile
+    container_name: voice-tts-streamer
+    ports:
+      - "50055:50055"
+    networks:
+      - voice-pipeline
+    restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    environment:
+      - CUDA_VISIBLE_DEVICES=0
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import grpc; grpc.insecure_channel('localhost:50055').channel_ready()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Vocoder - Mel to PCM audio
+  vocoder:
+    build:
+      context: ../..
+      dockerfile: infra/docker/vocoder.Dockerfile
+    container_name: voice-vocoder
+    ports:
+      - "50056:50056"
+    networks:
+      - voice-pipeline
+    restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    environment:
+      - CUDA_VISIBLE_DEVICES=0
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import grpc; grpc.insecure_channel('localhost:50056').channel_ready()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Audio Out - PCM playback
+  audio-out:
+    build:
+      context: ../..
+      dockerfile: infra/docker/audio-out.Dockerfile
+    container_name: voice-audio-out
+    ports:
+      - "50057:50057"
+    networks:
+      - voice-pipeline
+    restart: unless-stopped
+    devices:
+      - /dev/snd:/dev/snd  # Audio device access
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import grpc; grpc.insecure_channel('localhost:50057').channel_ready()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  voice-pipeline:
+    driver: bridge
+
+volumes:
+  model-cache:
+    driver: local
