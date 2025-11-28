@@ -26,6 +26,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     iproute2 \
     dnsutils \
     jq \
+  aggregate \
     nano \
     vim \
     python3 \
@@ -46,6 +47,10 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
 RUN pip3 install --upgrade pip
 RUN pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
 RUN pip3 install numpy scipy soundfile transformers TTS
+
+# Install protobuf and gRPC tools with compatible versions
+# Pinned to avoid conflicts with tensorboardX (<4.0) and trainer (<3.20)
+RUN pip3 install 'grpcio==1.48.2' 'grpcio-tools==1.48.2' 'protobuf>=3.19.0,<3.20'
 
 # Create non-root user
 RUN useradd -m -s /bin/zsh $USERNAME
