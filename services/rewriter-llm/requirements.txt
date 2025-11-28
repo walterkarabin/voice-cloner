@@ -3,10 +3,10 @@ grpcio-tools==1.48.2
 protobuf>=3.19.0,<3.20
 numpy>=1.24.0
 
-# LLM inference (install one of these)
-# Option 1: llama-cpp-python (recommended, uses GGUF models)
-# llama-cpp-python>=0.2.0
+# LLM inference
+# Option 1: llama-cpp-python (recommended for GGUF models, supports CPU/GPU)
+llama-cpp-python>=0.2.0
 
-# Option 2: transformers + torch (for HuggingFace models)
+# Option 2: transformers + torch (alternative for HuggingFace models)
 # torch>=2.0.0
 # transformers>=4.35.0

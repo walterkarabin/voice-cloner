@@ -3,5 +3,6 @@ grpcio-tools==1.48.2
 protobuf>=3.19.0,<3.20
 numpy>=1.24.0
 
-# Vocoder model (install when ready to use real HiFi-GAN)
-# torch>=2.0.0
+# Vocoder models
+torch>=2.0.0
+torchaudio>=2.0.0  # For Griffin-Lim vocoder

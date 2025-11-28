@@ -3,6 +3,7 @@ grpcio-tools==1.48.2
 protobuf>=3.19.0,<3.20
 numpy>=1.24.0
 
-# TTS models (install when ready to use real OpenVoice)
-# TTS>=0.20.0
-# torch>=2.0.0
+# TTS models
+TTS>=0.20.0
+torch>=2.0.0
+torchaudio>=2.0.0
