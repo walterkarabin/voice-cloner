@@ -81,7 +81,16 @@ class WhisperSTTService(stt_pb2_grpc.WhisperSTTServicer):
 
             except ImportError:
                 self.logger.error(
-                    "Neither faster-whisper nor openai-whisper available. "
+                    "openai-whisper not available. "
+                    "Using mock transcription for testing."
+                )
+                self.model = None
+                self.use_faster_whisper = False
+
+            except Exception as e:
+                # Catch network errors, permission errors, etc.
+                self.logger.warning(
+                    f"Failed to load openai-whisper model: {type(e).__name__}: {str(e)[:100]}. "
                     "Using mock transcription for testing."
                 )
                 self.model = None
