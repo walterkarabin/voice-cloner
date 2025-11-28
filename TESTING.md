@@ -292,16 +292,332 @@ EOF
 ---
 
 #### 6. Chunker Service
-**Status:** Not yet implemented
+
+**Install dependencies:**
+```bash
+cd /workspace/services/chunker
+pip3 install -r requirements.txt
+```
+
+**Terminal 1 - Start the server:**
+```bash
+cd /workspace/services/chunker
+python3 server.py --port 50054
+```
+
+**Expected output:**
+```
+INFO - Chunker service initialized
+INFO - Chunker service started on port 50054
+INFO - Chunk size range: 15-40 characters
+INFO - Predicts clause boundaries for natural phrasing
+```
+
+**Terminal 2 - Test with client:**
+```bash
+cd /workspace/services/chunker
+python3 client.py
+```
+
+**Expected output:**
+```
+=== Chunker Client Test ===
+
+Sending character fragments for chunking...
+
+Received N chunks:
+
+[ 0] │ yoda       │ The force is strong with you,
+[ 1] │ yoda       │ young Skywalker,
+[ 2] │ yoda       │ and you must learn to control it.
+...
+
+✓ Received N text chunk(s)
+```
+
+**Test with inline Python:**
+```bash
+python3 << 'EOF'
+import sys
+sys.path.insert(0, '/workspace')
+from services_loader import ChunkerClient
+
+client = ChunkerClient(host='localhost', port=50054)
+
+fragments = [
+    {
+        'text': "The force is strong with you, young Skywalker, and you must learn to control it.",
+        'character_id': 'yoda',
+        'is_provisional': False
+    }
+]
+
+chunks = list(client.chunk_stream(fragments))
+print(f"✓ Chunking test: received {len(chunks)} chunks")
+for chunk in chunks[:3]:  # Show first 3
+    print(f"  [{chunk['chunk_index']}] {chunk['text']} (boundary={chunk['is_clause_boundary']})")
+client.close()
+EOF
+```
+
+**Verify chunking quality:**
+- Chunks should be 15-40 characters
+- Clause boundaries should be detected (commas, periods)
+- Long text should be split at word boundaries
+- Target latency: < 5ms per fragment
+
+---
 
 #### 7. TTS-Streamer Service
-**Status:** Not yet implemented
+
+**Install dependencies:**
+```bash
+cd /workspace/services/tts-streamer
+pip3 install -r requirements.txt
+```
+
+**Terminal 1 - Start the server:**
+```bash
+cd /workspace/services/tts-streamer
+python3 server.py --port 50055 --use-mock
+```
+
+**Expected output:**
+```
+WARNING - Using mock TTS engine for testing
+INFO - TTS-Streamer service initialized
+INFO - TTS-Streamer service started on port 50055
+INFO - Using mock TTS engine - generates synthetic mel spectrograms
+```
+
+**Terminal 2 - Test with client:**
+```bash
+cd /workspace/services/tts-streamer
+python3 client.py
+```
+
+**Expected output:**
+```
+=== TTS-Streamer Client Test ===
+
+Sending TTS requests...
+
+Received N mel chunks:
+
+[ 0] Mel chunk: 80x50 (min=-X.XX, max=X.XX)
+[ 1] Mel chunk: 80x50 (min=-X.XX, max=X.XX)
+...
+
+✓ Received N mel chunk(s)
+  Total frames: XXX
+  Estimated duration: X.XXs
+```
+
+**Test with inline Python:**
+```bash
+python3 << 'EOF'
+import sys
+import numpy as np
+sys.path.insert(0, '/workspace')
+from services_loader import TTSStreamerClient
+
+client = TTSStreamerClient(host='localhost', port=50055)
+
+# Generate test embedding
+embedding = np.random.randn(256).astype(np.float32)
+
+requests = [
+    {
+        'text': "The force is strong with you.",
+        'embedding': embedding,
+        'character_id': 'yoda',
+        'chunk_index': 0
+    }
+]
+
+mel_chunks = list(client.generate_mel_stream(requests))
+print(f"✓ TTS test: received {len(mel_chunks)} mel chunks")
+print(f"  First chunk shape: {mel_chunks[0]['n_mels']}x{mel_chunks[0]['n_frames']}")
+client.close()
+EOF
+```
+
+**Verify TTS output:**
+- Mel spectrograms should be 80 x N frames
+- Streaming should start within ~50ms (mock mode)
+- With real OpenVoice: target 150-300ms for first audio
+
+**Note:** Mock mode generates synthetic mel spectrograms. For real TTS, install OpenVoice model and use `--model-path` flag.
+
+---
 
 #### 8. Vocoder Service
-**Status:** Not yet implemented
+
+**Install dependencies:**
+```bash
+cd /workspace/services/vocoder
+pip3 install -r requirements.txt
+```
+
+**Terminal 1 - Start the server:**
+```bash
+cd /workspace/services/vocoder
+python3 server.py --port 50056 --use-mock
+```
+
+**Expected output:**
+```
+WARNING - Using mock vocoder for testing
+INFO - Vocoder service initialized
+INFO - Vocoder service started on port 50056
+INFO - Using mock vocoder - generates synthetic PCM audio
+```
+
+**Terminal 2 - Test with client:**
+```bash
+cd /workspace/services/vocoder
+python3 client.py
+```
+
+**Expected output:**
+```
+=== Vocoder Client Test ===
+
+Sending 3 mel chunks...
+
+Received N PCM chunks:
+
+[ 0] PCM chunk: XXXX samples, 22050Hz, 1ch, 16-bit
+[ 1] PCM chunk: XXXX samples, 22050Hz, 1ch, 16-bit
+...
+
+✓ Received N PCM chunk(s)
+  Total samples: XXXXX
+  Duration: X.XXs
+```
+
+**Test with inline Python:**
+```bash
+python3 << 'EOF'
+import sys
+import numpy as np
+sys.path.insert(0, '/workspace')
+from services_loader import VocoderClient
+
+client = VocoderClient(host='localhost', port=50056)
+
+# Generate test mel spectrogram
+mel_chunks = [
+    np.random.randn(80, 50).astype(np.float32)
+]
+
+pcm_chunks = list(client.generate_pcm_stream(mel_chunks))
+print(f"✓ Vocoder test: received {len(pcm_chunks)} PCM chunks")
+if pcm_chunks:
+    total_samples = sum(len(c['data']) for c in pcm_chunks)
+    duration = total_samples / pcm_chunks[0]['sample_rate']
+    print(f"  Total duration: {duration:.2f}s")
+client.close()
+EOF
+```
+
+**Verify vocoder output:**
+- PCM audio should be 22050Hz, mono, 16-bit
+- Processing should be ~10% of real-time (mock mode)
+- With real HiFi-GAN: target ~20ms per 200ms of audio
+
+**Note:** Mock mode generates synthetic PCM. For real vocoding, install HiFi-GAN model and use `--model-path` flag.
+
+---
 
 #### 9. Audio-Out Service
-**Status:** Not yet implemented
+
+**Install dependencies:**
+```bash
+cd /workspace/services/audio-out
+pip3 install -r requirements.txt
+```
+
+**Terminal 1 - Start the server:**
+```bash
+cd /workspace/services/audio-out
+python3 server.py --port 50057
+```
+
+**Expected output:**
+```
+INFO - Audio-Out service initialized
+INFO - Audio-Out service started on port 50057
+INFO - Sample rate: 22050Hz
+INFO - Crossfade: ~20ms, Buffer: ~60ms max
+```
+
+**Terminal 2 - Test with client:**
+```bash
+cd /workspace/services/audio-out
+python3 client.py
+```
+
+**Expected output:**
+```
+=== Audio-Out Client Test ===
+
+1. Getting initial status...
+   Status: playing=False, muted=False, volume=1.00
+
+2. Streaming audio chunks...
+   ✓ Sent 5 chunks
+
+   Waiting X.Xs for playback to complete...
+
+3. Testing control commands...
+   Set volume to 0.8: volume=0.80
+   Muted: is_muted=True
+   Unmuted: is_muted=False
+
+   ✓ Control commands successful
+
+4. Final status...
+   Status: playing=True, muted=False, volume=0.80, buffer=XXms
+
+✓ Audio-Out client test completed
+```
+
+**Test with inline Python:**
+```bash
+python3 << 'EOF'
+import sys
+import numpy as np
+sys.path.insert(0, '/workspace')
+from services_loader import AudioOutClient
+from libs.proto.generated.python import audio_out_pb2
+
+client = AudioOutClient(host='localhost', port=50057)
+
+# Generate test audio
+sample_rate = 22050
+t = np.arange(8820) / sample_rate  # 0.4s
+tone = 0.3 * np.sin(2 * np.pi * 440 * t).astype(np.float32)
+
+# Play audio
+client.play_stream([tone], sample_rate=sample_rate)
+print("✓ Audio playback started")
+
+# Get status
+status = client.get_status()
+print(f"  Status: playing={status['is_playing']}, buffer={status['buffer_size_ms']}ms")
+
+client.close()
+EOF
+```
+
+**Verify audio-out:**
+- Playback should start immediately
+- Crossfading prevents clicks/pops between chunks
+- Buffer should stay under 60ms
+- Control commands (mute, volume) work correctly
+
+**Note:** Current implementation simulates playback timing. For real audio output, install PyAudio or sounddevice and enable in server.py.
 
 ---
 

@@ -68,10 +68,34 @@ try:
 except (FileNotFoundError, ImportError, AttributeError):
     LLMRewriterClient = None
 
+try:
+    ChunkerClient = load_service_client('chunker', 'ChunkerClient')
+except (FileNotFoundError, ImportError, AttributeError):
+    ChunkerClient = None
+
+try:
+    TTSStreamerClient = load_service_client('tts-streamer', 'TTSStreamerClient')
+except (FileNotFoundError, ImportError, AttributeError):
+    TTSStreamerClient = None
+
+try:
+    VocoderClient = load_service_client('vocoder', 'VocoderClient')
+except (FileNotFoundError, ImportError, AttributeError):
+    VocoderClient = None
+
+try:
+    AudioOutClient = load_service_client('audio-out', 'AudioOutClient')
+except (FileNotFoundError, ImportError, AttributeError):
+    AudioOutClient = None
+
 
 __all__ = [
     'load_service_client',
     'EmbedLoaderClient',
     'WhisperSTTClient',
     'LLMRewriterClient',
+    'ChunkerClient',
+    'TTSStreamerClient',
+    'VocoderClient',
+    'AudioOutClient',
 ]
