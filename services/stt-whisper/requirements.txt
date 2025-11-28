@@ -1,6 +1,6 @@
-grpcio>=1.60.0
-grpcio-tools>=1.60.0
-protobuf>=3.20.0
+grpcio==1.48.2
+grpcio-tools==1.48.2
+protobuf>=3.19.0,<3.20
 numpy>=1.24.0
 
 # Whisper implementations (install one of these)
@@ -8,7 +8,9 @@ numpy>=1.24.0
 # faster-whisper>=0.10.0
 
 # Option 2: openai-whisper (original implementation)
-# openai-whisper>=20231117
+# NOTE: Requires internet access to download models from https://openaipublic.azureedge.net
+# If behind a firewall, ensure openaipublic.azureedge.net is allowed
+openai-whisper>=20231117
 
 # For audio file support in client
 soundfile>=0.12.0
