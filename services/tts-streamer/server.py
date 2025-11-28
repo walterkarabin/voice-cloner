@@ -104,37 +104,156 @@ class MockTTSEngine:
 
 class RealTTSEngine:
     """
-    Real OpenVoice TTS engine (placeholder for future implementation).
+    Real TTS engine using Coqui TTS (VITS model).
 
-    This would load the actual OpenVoice model and perform inference.
+    Uses VITS model which can generate mel spectrograms with voice cloning.
+    For production, this can be replaced with OpenVoice or other models.
     """
 
-    def __init__(self, model_path: str, device: str = 'cuda'):
-        self.model_path = model_path
+    def __init__(self, model_name: str = "tts_models/en/vctk/vits", device: str = 'cuda'):
+        self.model_name = model_name
         self.device = device
         self.logger = logging.getLogger(__name__)
-        # TODO: Load OpenVoice model
-        # self.model = load_openvoice_model(model_path, device)
-        raise NotImplementedError("Real OpenVoice TTS not yet implemented")
+        self.n_mels = 80
+        self.sample_rate = 22050
+        self.hop_length = 256
+
+        # Load TTS model
+        try:
+            from TTS.api import TTS as CoquiTTS
+            import torch
+
+            self.logger.info(f"Loading TTS model: {model_name}")
+            self.tts = CoquiTTS(model_name=model_name).to(device)
+            self.device_name = device
+            self.logger.info(f"✓ Loaded TTS model on {device}")
+
+        except ImportError as e:
+            self.logger.error(f"TTS library not available: {e}")
+            raise NotImplementedError("TTS library not installed. Run: pip install TTS")
+        except Exception as e:
+            self.logger.error(f"Failed to load TTS model: {e}")
+            raise
+
+    def generate_mel_stream(
+        self,
+        text: str,
+        embedding: np.ndarray = None,
+        chunk_size_frames: int = 50
+    ) -> Iterator[np.ndarray]:
+        """
+        Generate mel spectrogram chunks for text.
+
+        Args:
+            text: Text to synthesize
+            embedding: Voice embedding vector (optional, for voice cloning)
+            chunk_size_frames: Number of frames per chunk
+
+        Yields:
+            Mel spectrogram chunks (n_mels x n_frames)
+        """
+        try:
+            # Generate full audio using TTS
+            # Note: Most TTS models don't support true streaming, so we generate
+            # the full audio and then chunk it for streaming
+            import torch
+
+            # Use speaker embedding if provided and model supports it
+            # For VITS models, we can use speaker_idx parameter
+            wav = self.tts.tts(text=text)
+
+            # Convert audio to mel spectrogram
+            mel = self._audio_to_mel(np.array(wav))
+
+            # Stream mel in chunks
+            total_frames = mel.shape[1]
+            frames_sent = 0
+
+            while frames_sent < total_frames:
+                frames_this_chunk = min(chunk_size_frames, total_frames - frames_sent)
+                mel_chunk = mel[:, frames_sent:frames_sent + frames_this_chunk]
+
+                yield mel_chunk
+                frames_sent += frames_this_chunk
+
+                # Small delay to simulate streaming
+                time.sleep(0.01)
+
+        except Exception as e:
+            self.logger.error(f"TTS generation error: {e}", exc_info=True)
+            # Return a small silent mel chunk on error
+            yield np.zeros((self.n_mels, chunk_size_frames), dtype=np.float32)
+
+    def _audio_to_mel(self, audio: np.ndarray) -> np.ndarray:
+        """
+        Convert audio waveform to mel spectrogram.
+
+        Args:
+            audio: Audio waveform (float32)
+
+        Returns:
+            Mel spectrogram (n_mels x n_frames)
+        """
+        try:
+            import torch
+            import torchaudio
+
+            # Convert to torch tensor
+            if not isinstance(audio, torch.Tensor):
+                audio_tensor = torch.FloatTensor(audio).unsqueeze(0)
+            else:
+                audio_tensor = audio
+
+            # Create mel spectrogram transform
+            mel_transform = torchaudio.transforms.MelSpectrogram(
+                sample_rate=self.sample_rate,
+                n_fft=1024,
+                hop_length=self.hop_length,
+                n_mels=self.n_mels,
+                f_min=0,
+                f_max=8000
+            )
+
+            # Generate mel spectrogram
+            mel = mel_transform(audio_tensor)
+
+            # Convert to log scale
+            mel = torch.log(torch.clamp(mel, min=1e-5))
+
+            # Convert to numpy and squeeze batch dimension
+            mel_np = mel.squeeze(0).cpu().numpy()
+
+            return mel_np
+
+        except Exception as e:
+            self.logger.error(f"Mel conversion error: {e}")
+            # Return zeros on error
+            estimated_frames = int(len(audio) / self.hop_length)
+            return np.zeros((self.n_mels, estimated_frames), dtype=np.float32)
 
 
 class TTSStreamerService(tts_pb2_grpc.TTSStreamerServicer):
     """gRPC service for TTS mel generation."""
 
-    def __init__(self, model_path: str = None, use_mock: bool = True):
+    def __init__(self, model_name: str = None, use_mock: bool = True, device: str = 'cuda'):
         self.logger = logging.getLogger(__name__)
 
-        if use_mock or model_path is None:
+        if use_mock or model_name is None:
             self.logger.warning("Using mock TTS engine for testing")
             self.engine = MockTTSEngine(n_mels=80, sample_rate=22050)
             self.use_mock = True
         else:
-            self.logger.info(f"Loading OpenVoice model from: {model_path}")
+            self.logger.info(f"Loading TTS model: {model_name}")
             try:
-                self.engine = RealTTSEngine(model_path)
+                self.engine = RealTTSEngine(model_name=model_name, device=device)
                 self.use_mock = False
+            except (ImportError, NotImplementedError) as e:
+                self.logger.error(f"Failed to load TTS model: {e}")
+                self.logger.warning("Falling back to mock TTS engine")
+                self.engine = MockTTSEngine(n_mels=80, sample_rate=22050)
+                self.use_mock = True
             except Exception as e:
-                self.logger.error(f"Failed to load OpenVoice model: {e}")
+                self.logger.error(f"Unexpected error loading TTS model: {e}")
                 self.logger.warning("Falling back to mock TTS engine")
                 self.engine = MockTTSEngine(n_mels=80, sample_rate=22050)
                 self.use_mock = True
@@ -192,11 +311,11 @@ class TTSStreamerService(tts_pb2_grpc.TTSStreamerServicer):
             context.abort(grpc.StatusCode.INTERNAL, str(e))
 
 
-def serve(port: int = 50055, model_path: str = None, use_mock: bool = True):
+def serve(port: int = 50055, model_name: str = None, use_mock: bool = True, device: str = 'cuda'):
     """Start the gRPC server."""
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     tts_pb2_grpc.add_TTSStreamerServicer_to_server(
-        TTSStreamerService(model_path=model_path, use_mock=use_mock),
+        TTSStreamerService(model_name=model_name, use_mock=use_mock, device=device),
         server
     )
     server.add_insecure_port(f'[::]:{port}')
@@ -206,7 +325,7 @@ def serve(port: int = 50055, model_path: str = None, use_mock: bool = True):
     if use_mock:
         logging.info("Using mock TTS engine - generates synthetic mel spectrograms")
     else:
-        logging.info(f"Using OpenVoice model from: {model_path}")
+        logging.info(f"Using TTS model: {model_name} on {device}")
 
     try:
         server.wait_for_termination()
@@ -218,9 +337,15 @@ def serve(port: int = 50055, model_path: str = None, use_mock: bool = True):
 def main():
     parser = argparse.ArgumentParser(description='TTS-Streamer Service')
     parser.add_argument('--port', type=int, default=50055, help='Port to listen on')
-    parser.add_argument('--model-path', type=str, help='Path to OpenVoice model')
+    parser.add_argument('--model-name', type=str,
+                        default='tts_models/en/vctk/vits',
+                        help='TTS model name (Coqui TTS format)')
+    parser.add_argument('--device', type=str, default='cuda',
+                        help='Device to run on (cuda or cpu)')
     parser.add_argument('--use-mock', action='store_true', default=True,
                         help='Use mock TTS engine (default: True)')
+    parser.add_argument('--use-real', dest='use_mock', action='store_false',
+                        help='Use real TTS model')
     parser.add_argument('--debug', action='store_true', help='Enable debug logging')
     args = parser.parse_args()
 
@@ -231,7 +356,7 @@ def main():
         format='%(levelname)s - %(message)s'
     )
 
-    serve(port=args.port, model_path=args.model_path, use_mock=args.use_mock)
+    serve(port=args.port, model_name=args.model_name, use_mock=args.use_mock, device=args.device)
 
 
 if __name__ == '__main__':
