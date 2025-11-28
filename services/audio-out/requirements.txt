@@ -1,0 +1,8 @@
+grpcio==1.48.2
+grpcio-tools==1.48.2
+protobuf>=3.19.0,<3.20
+numpy>=1.24.0
+
+# Optional: For real audio output (install when needed)
+# pyaudio>=0.2.13
+# sounddevice>=0.4.6
