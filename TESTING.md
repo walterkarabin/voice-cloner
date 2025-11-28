@@ -718,19 +718,39 @@ python3 test_integration.py --character yoda --input test_audio.wav
 
 ## Docker Compose Testing
 
-**Once Docker images are built:**
+### Building and Starting Services
 
+**Build all service images:**
 ```bash
 cd /workspace/infra/compose
-docker-compose up
+docker-compose build
 ```
 
-**Test connectivity:**
+**Start all services (mock mode):**
 ```bash
-# Check all services are healthy
-docker-compose ps
+docker-compose up -d
+```
 
-# Test embed-loader through Docker
+**View logs:**
+```bash
+# All services
+docker-compose logs -f
+
+# Specific service
+docker-compose logs -f stt-whisper
+```
+
+**Check service health:**
+```bash
+docker-compose ps
+```
+
+All services should show status as "Up" with healthy status.
+
+### Test Individual Services
+
+**Test embed-loader through Docker:**
+```bash
 python3 << 'EOF'
 import sys
 sys.path.insert(0, '/workspace')
@@ -740,6 +760,131 @@ embedding = client.get_embedding('yoda')
 print(f"✓ Docker service test passed: {embedding.shape}")
 client.close()
 EOF
+```
+
+### Using Real Models with Docker
+
+Edit `/workspace/infra/compose/.env` (copy from `.env.example`):
+
+```bash
+# Enable real models
+STT_MODEL_SIZE=small
+TTS_USE_MOCK=false
+VOCODER_USE_MOCK=false
+VOCODER_USE_GRIFFIN_LIM=true
+```
+
+Then rebuild and restart:
+```bash
+docker-compose down
+docker-compose build
+docker-compose up -d
+```
+
+### Stopping Services
+
+```bash
+# Stop but keep containers
+docker-compose stop
+
+# Stop and remove containers
+docker-compose down
+
+# Remove everything including volumes
+docker-compose down -v
+```
+
+---
+
+## Live Audio Pipeline (CLI)
+
+### Prerequisites
+
+```bash
+cd /workspace/apps/cli
+pip3 install -r requirements.txt
+```
+
+### List Audio Devices
+
+```bash
+python3 voice_pipeline.py --list-devices
+```
+
+This shows all available microphones and speakers with their device indices.
+
+### Run Full Pipeline
+
+**With Docker services:**
+```bash
+# 1. Start services with Docker
+cd /workspace/infra/compose
+docker-compose up -d
+
+# 2. Run CLI orchestrator
+cd /workspace/apps/cli
+python3 voice_pipeline.py --character yoda --host localhost
+```
+
+**With local services:**
+```bash
+# Start each service in separate terminals (see individual service tests above)
+# Then run CLI:
+cd /workspace/apps/cli
+python3 voice_pipeline.py --character yoda
+```
+
+**With specific audio devices:**
+```bash
+# List devices first to get indices
+python3 voice_pipeline.py --list-devices
+
+# Use specific devices
+python3 voice_pipeline.py --character vader --input-device 2 --output-device 3
+```
+
+### Available Characters
+
+- `yoda` - Yoda's inverted word order speech
+- `vader` - Darth Vader's commanding tone
+- `obi-wan` - Obi-Wan's wise, diplomatic style
+- `leia` - Princess Leia's assertive voice
+
+### Pipeline Flow
+
+```
+Microphone Input
+    ↓
+STT-Whisper (Speech → Text)
+    ↓
+Rewriter-LLM (Text → Character Style)
+    ↓
+Chunker (Split into chunks)
+    ↓
+Embed-Loader (Get voice embedding)
+    ↓
+TTS-Streamer (Text + Embedding → Mel)
+    ↓
+Vocoder (Mel → PCM Audio)
+    ↓
+Audio-Out (Play through speakers)
+    ↓
+Speaker Output
+```
+
+### Quick Start Script
+
+Use the convenience script:
+
+```bash
+# Start with Docker (mock mode)
+/workspace/start-pipeline.sh docker yoda
+
+# Show local commands
+/workspace/start-pipeline.sh local vader
+
+# Start mock mode
+/workspace/start-pipeline.sh mock
 ```
 
 ---
@@ -798,3 +943,260 @@ python3 benchmark.py --iterations 100 --character yoda
 - All tests should pass before moving to the next component
 - Integration tests require all services to be running
 - Performance benchmarks should be run on the target hardware (RTX 3070)
+
+---
+
+## Docker Infrastructure
+
+### Building Images
+
+**Build all service images:**
+```bash
+cd /workspace/infra/compose
+docker-compose build
+```
+
+**Build specific service:**
+```bash
+docker-compose build stt-whisper
+```
+
+### Running Services
+
+**Start all services (detached):**
+```bash
+docker-compose up -d
+```
+
+**Start with logs visible:**
+```bash
+docker-compose up
+```
+
+**View service logs:**
+```bash
+# All services
+docker-compose logs -f
+
+# Specific service
+docker-compose logs -f stt-whisper
+```
+
+**Check service health:**
+```bash
+docker-compose ps
+```
+
+### Configuration
+
+Copy `.env.example` to `.env` and customize:
+
+```bash
+cd /workspace/infra/compose
+cp .env.example .env
+nano .env  # Edit configuration
+```
+
+**Example configurations:**
+
+Mock mode (fast testing):
+```env
+STT_MODEL_SIZE=small
+TTS_USE_MOCK=true
+VOCODER_USE_MOCK=true
+```
+
+Real models:
+```env
+STT_MODEL_SIZE=small
+TTS_USE_MOCK=false
+TTS_MODEL_NAME=tts_models/en/vctk/vits
+VOCODER_USE_GRIFFIN_LIM=true
+```
+
+### Stopping Services
+
+```bash
+# Stop (keep containers)
+docker-compose stop
+
+# Stop and remove
+docker-compose down
+
+# Remove everything
+docker-compose down -v
+```
+
+---
+
+## Live Audio Pipeline
+
+### Setup
+
+**Install CLI dependencies:**
+```bash
+cd /workspace/apps/cli
+pip3 install -r requirements.txt
+```
+
+### List Audio Devices
+
+```bash
+python3 voice_pipeline.py --list-devices
+```
+
+Output shows input/output devices:
+```
+=== Audio Input Devices ===
+[0] Built-in Microphone (DEFAULT)
+    Channels: 1, Sample Rate: 48000.0 Hz
+[2] USB Microphone
+    Channels: 2, Sample Rate: 44100.0 Hz
+
+=== Audio Output Devices ===
+[1] Built-in Speaker (DEFAULT)
+    Channels: 2, Sample Rate: 48000.0 Hz
+```
+
+### Running the Pipeline
+
+**Basic usage:**
+```bash
+# Start Docker services first
+cd /workspace/infra/compose && docker-compose up -d
+
+# Run CLI orchestrator
+cd /workspace/apps/cli
+python3 voice_pipeline.py --character yoda
+```
+
+**With specific devices:**
+```bash
+python3 voice_pipeline.py --character vader --input-device 2 --output-device 1
+```
+
+**With debug logging:**
+```bash
+python3 voice_pipeline.py --character obi-wan --debug
+```
+
+**Connect to remote services:**
+```bash
+python3 voice_pipeline.py --character leia --host 192.168.1.100
+```
+
+### Character Options
+
+- `yoda` - Inverted word order ("Strong with you, the Force is")
+- `vader` - Commanding, ominous tone
+- `obi-wan` - Wise, diplomatic speech
+- `leia` - Assertive, leadership voice
+
+### How It Works
+
+The CLI orchestrator:
+1. Captures audio from your microphone (streaming)
+2. Sends to STT service for transcription
+3. Rewrites text in character's voice (LLM)
+4. Chunks text for TTS
+5. Generates speech with character voice
+6. Plays through speakers in real-time
+
+Target end-to-end latency: 300-600ms
+
+### Quick Start
+
+Use the startup script:
+
+```bash
+# Start Docker services and show CLI command
+./start-pipeline.sh docker yoda
+
+# Show commands for local development
+./start-pipeline.sh local vader
+
+# Start mock mode for testing
+./start-pipeline.sh mock
+```
+
+### Troubleshooting Audio
+
+**No audio devices:**
+```bash
+# Install PortAudio
+sudo apt-get install portaudio19-dev
+
+# Test with sounddevice
+python3 -c "import sounddevice as sd; print(sd.query_devices())"
+```
+
+**Microphone not working:**
+- Check system audio settings
+- Test with `arecord -l` (Linux) or system preferences
+- Verify microphone permissions
+- Try different `--input-device` index
+
+**No audio output:**
+- Check speaker volume
+- Verify services are using real models (not mock)
+- Check `docker-compose logs audio-out`
+- Test with different `--output-device`
+
+**High latency:**
+- Use mock mode to test pipeline flow
+- Enable GPU for STT, LLM, TTS services
+- Reduce audio chunk size
+- Use faster-whisper instead of openai-whisper
+
+**Connection refused:**
+- Ensure services are running: `docker-compose ps`
+- Check service logs: `docker-compose logs`
+- Verify ports 50051-50057 are accessible
+- Use `--host localhost` for Docker services
+
+---
+
+## Complete End-to-End Example
+
+### 1. Start Services
+
+```bash
+cd /workspace/infra/compose
+docker-compose up -d
+```
+
+### 2. Verify All Services
+
+```bash
+docker-compose ps
+# All should show "Up" and "healthy"
+```
+
+### 3. List Audio Devices
+
+```bash
+cd /workspace/apps/cli
+python3 voice_pipeline.py --list-devices
+```
+
+### 4. Run Pipeline
+
+```bash
+python3 voice_pipeline.py --character yoda --debug
+```
+
+### 5. Speak and Listen
+
+Speak into your microphone and hear your voice transformed into Yoda's speech pattern in real-time!
+
+### 6. Stop When Done
+
+```bash
+# Stop CLI with Ctrl+C
+
+# Stop services
+cd /workspace/infra/compose
+docker-compose down
+```
+
+---
