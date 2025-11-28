@@ -73,6 +73,12 @@ EOF
 
 #### 3. Embed-Loader Service
 
+**Install dependencies:**
+```bash
+cd /workspace/services/embed-loader
+pip3 install -r requirements.txt
+```
+
 **Terminal 1 - Start the server:**
 ```bash
 cd /workspace/services/embed-loader
@@ -105,7 +111,7 @@ python3 client.py
 python3 << 'EOF'
 import sys
 sys.path.insert(0, '/workspace')
-from services.embed_loader.client import EmbedLoaderClient
+from services_loader import EmbedLoaderClient
 
 client = EmbedLoaderClient(host='localhost', port=50051)
 embedding = client.get_embedding('yoda')
@@ -119,6 +125,12 @@ EOF
 
 #### 4. STT-Whisper Service
 
+**Install dependencies:**
+```bash
+cd /workspace/services/stt-whisper
+pip3 install -r requirements.txt
+```
+
 **Terminal 1 - Start the server:**
 ```bash
 cd /workspace/services/stt-whisper
@@ -126,11 +138,24 @@ python3 server.py --port 50052 --model-size small
 ```
 
 **Expected output:**
+
+If running in container with firewall (no model downloads available):
 ```
 INFO - Loading Whisper model: small
-INFO - ✓ Loaded faster-whisper model: small
+WARNING - faster-whisper not available, trying openai-whisper
+ERROR - Neither faster-whisper nor openai-whisper available. Using mock transcription for testing.
 INFO - Whisper STT service started on port 50052
 ```
+
+If running with internet access and openai-whisper installed:
+```
+INFO - Loading Whisper model: small
+WARNING - faster-whisper not available, trying openai-whisper
+INFO - ✓ Loaded openai-whisper model: small
+INFO - Whisper STT service started on port 50052
+```
+
+Note: The mock mode will return placeholder transcripts for testing the pipeline flow. For real transcription, the Whisper model needs to be downloaded (requires internet access).
 
 **Terminal 2 - Test with client:**
 ```bash
@@ -156,7 +181,7 @@ Note: This is a tone, actual speech will produce real transcripts
 python3 << 'EOF'
 import sys
 sys.path.insert(0, '/workspace')
-from services.stt_whisper.client import WhisperSTTClient
+from services_loader import WhisperSTTClient
 
 client = WhisperSTTClient(host='localhost', port=50052)
 
@@ -186,6 +211,12 @@ EOF
 ### ⏳ Pending Components
 
 #### 5. Rewriter-LLM Service
+
+**Install dependencies:**
+```bash
+cd /workspace/services/rewriter-llm
+pip3 install -r requirements.txt
+```
 
 **Terminal 1 - Start the server:**
 ```bash
@@ -231,7 +262,7 @@ Yoda:     you. with strong is force The
 python3 << 'EOF'
 import sys
 sys.path.insert(0, '/workspace')
-from services.rewriter_llm.client import LLMRewriterClient
+from services_loader import LLMRewriterClient
 
 client = LLMRewriterClient(host='localhost', port=50053)
 
@@ -338,7 +369,9 @@ docker-compose ps
 
 # Test embed-loader through Docker
 python3 << 'EOF'
-from services.embed_loader.client import EmbedLoaderClient
+import sys
+sys.path.insert(0, '/workspace')
+from services_loader import EmbedLoaderClient
 client = EmbedLoaderClient(host='localhost', port=50051)
 embedding = client.get_embedding('yoda')
 print(f"✓ Docker service test passed: {embedding.shape}")
